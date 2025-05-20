@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Анализатор резюме</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				max-width: 800px;
+				margin: 0 auto;
+				padding: 20px;
+				background-color: #f5f5f5;
+			}
+
+			.container {
+				background-color: white;
+				padding: 20px;
+				border-radius: 8px;
+				box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+			}
+
+			h1 {
+				color: #333;
+				text-align: center;
+			}
+
+			.upload-section {
+				text-align: center;
+				margin: 20px 0;
+				padding: 20px;
+				border: 2px dashed #ccc;
+				border-radius: 8px;
+			}
+
+			.upload-section.dragover {
+				background-color: #e9ecef;
+				border-color: #007bff;
+			}
+
+			#fileInput {
+				display: none;
+			}
+
+			.upload-btn {
+				background-color: #007bff;
+				color: white;
+				padding: 10px 20px;
+				border: none;
+				border-radius: 4px;
+				cursor: pointer;
+				font-size: 16px;
+			}
+
+			.upload-btn:hover {
+				background-color: #0056b3;
+			}
+
+			#result {
+				margin-top: 20px;
+				padding: 20px;
+				border: 1px solid #ddd;
+				border-radius: 4px;
+				display: none;
+			}
+
+			.loading {
+				display: none;
+				text-align: center;
+				margin: 20px 0;
+			}
+
+			.error {
+				color: #dc3545;
+				text-align: center;
+				margin: 10px 0;
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Анализатор резюме</h1>
+
+			<div class="upload-section" id="dropZone">
+				<p>Перетащите PDF файл с резюме сюда или</p>
+				<input type="file" id="fileInput" accept=".pdf" />
+				<button
+					class="upload-btn"
+					onclick="document.getElementById('fileInput').click()"
+				>
+					Выбрать файл
+				</button>
+			</div>
+
+			<div class="loading" id="loading">
+				<p>Анализируем резюме...</p>
+			</div>
+
+			<div class="error" id="error"></div>
+
+			<div id="result"></div>
+		</div>
+
+		<script>
+			const dropZone = document.getElementById('dropZone')
+			const fileInput = document.getElementById('fileInput')
+			const loading = document.getElementById('loading')
+			const error = document.getElementById('error')
+			const result = document.getElementById('result')
+
+			dropZone.addEventListener('dragover', (e) => {
+				e.preventDefault()
+				dropZone.classList.add('dragover')
+			})
+
+			dropZone.addEventListener('dragleave', () => {
+				dropZone.classList.remove('dragover')
+			})
+
+			dropZone.addEventListener('drop', (e) => {
+				e.preventDefault()
+				dropZone.classList.remove('dragover')
+				const files = e.dataTransfer.files
+				if (files.length > 0) {
+					handleFile(files[0])
+				}
+			})
+
+			fileInput.addEventListener('change', (e) => {
+				if (e.target.files.length > 0) {
+					handleFile(e.target.files[0])
+				}
+			})
+
+			function handleFile(file) {
+				if (file.type !== 'application/pdf') {
+					showError('Пожалуйста, загрузите PDF файл')
+					return
+				}
+
+				const formData = new FormData()
+				formData.append('resume', file)
+
+				loading.style.display = 'block'
+				error.style.display = 'none'
+				result.style.display = 'none'
+
+				fetch('/analyze-resume', {
+					method: 'POST',
+					body: formData,
+				})
+					.then((response) => response.json())
+					.then((data) => {
+						loading.style.display = 'none'
+						if (data.error) {
+							showError(data.error)
+						} else {
+							showResult(data.analysis)
+						}
+					})
+					.catch((err) => {
+						loading.style.display = 'none'
+						showError('Произошла ошибка при обработке файла')
+					})
+			}
+
+			function showError(message) {
+				error.textContent = message
+				error.style.display = 'block'
+			}
+
+			function showResult(analysis) {
+				const formattedAnalysis = analysis
+					.replace(/### (.*?)\n/g, '<h3>$1</h3>')
+					.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+					.replace(/\n- /g, '<br>- ')
+					.replace(/\n\n/g, '<br><br>')
+
+				result.innerHTML = formattedAnalysis
+				result.style.display = 'block'
+			}
+		</script>
+	</body>
+</html>
